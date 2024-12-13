@@ -40,8 +40,8 @@ jobs:
       run: |
         curl -F "reqtype=fileupload" -F "fileToUpload=@SparseBox.ipa" https://catbox.moe/user/api.php > catbox_url.txt
 
-    # Step 6: Generate the SideStore Source JSON with the new version
-    - name: Generate SideStore Source JSON
+    # Step 6: Calculate file size and fetch necessary details
+    - name: Calculate file size and fetch details
       run: |
         VERSION_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
         BUILD_NUMBER=${{ github.run_number }}
