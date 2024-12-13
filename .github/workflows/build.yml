@@ -16,54 +16,95 @@ jobs:
 
     steps:
     # Step 1: Checkout the code
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
     # Step 2: Download the pre-built .zip file
-    - name: Download SparseBox .zip
-      run: |
-        curl -L -o artifact.zip https://nightly.link/khanhduytran0/SparseBox/workflows/build/main/artifact.zip
+      - name: Download SparseBox .zip
+        run: |
+          curl -L -o artifact.zip https://nightly.link/khanhduytran0/SparseBox/workflows/build/main/artifact.zip
 
     # Step 3: Unzip the .zip file to extract the .ipa
-    - name: Unzip SparseBox.zip
-      run: |
-        mkdir -p extracted_ipa
-        unzip artifact.zip -d extracted_ipa
+      - name: Unzip SparseBox.zip
+        run: |
+          mkdir -p extracted_ipa
+          unzip artifact.zip -d extracted_ipa
 
     # Step 4: Move the .ipa file from the extracted folder
-    - name: Locate the .ipa file
-      run: |
-        mv extracted_ipa/com.kdt.sparsebox_0.0.1.ipa SparseBox.ipa
+      - name: Locate the .ipa file
+        run: |
+          mv extracted_ipa/com.kdt.sparsebox_0.0.1.ipa SparseBox.ipa
 
     # Step 5: Upload .ipa to Catbox.moe
-    - name: Upload to Catbox.moe
-      run: |
-        curl -F "reqtype=fileupload" -F "fileToUpload=@SparseBox.ipa" https://catbox.moe/user/api.php > catbox_url.txt
+      - name: Upload to Catbox.moe
+        run: |
+          curl -F "reqtype=fileupload" -F "fileToUpload=@SparseBox.ipa" https://catbox.moe/user/api.php > catbox_url.txt
 
-    # Step 6: Generate the SideStore Source JSON
-    - name: Generate SideStore Source JSON
-      run: |
-        VERSION_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
-        BUILD_NUMBER=${{ github.run_number }}
-        DOWNLOAD_URL=$(cat catbox_url.txt)
+    # Step 6: Get the file size of the .ipa
+      - name: Get IPA File Size
+        run: |
+          FILE_SIZE=$(stat --format=%s SparseBox.ipa)
+          echo "IPA file size: $FILE_SIZE bytes"  # Print the file size
+          echo "FILE_SIZE=$FILE_SIZE" >> $GITHUB_ENV
 
-        echo "{
-          \"name\": \"SparseBox\",
-          \"identifier\": \"com.kdt.sparsebox\",
-          \"bundleIdentifier\": \"com.kdt.sparsebox\",
-          \"developerName\": \"khanhduytran0\",
-          \"version\": \"$BUILD_NUMBER\",
-          \"versionDate\": \"$VERSION_DATE\",
-          \"versionDescription\": \"On-device backup restoration? rewrote SparseRestore to swift\",
-          \"subtitle\": \"SparseBox App\",
-          \"downloadURL\": \"$DOWNLOAD_URL\"
-        }" > sidestore_source.json
+    # Step 7: Generate the SideStore Source JSON with the new version
+      - name: Generate SideStore Source JSON
+        run: |
+          VERSION_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          BUILD_NUMBER=${{ github.run_number }}
+          DOWNLOAD_URL=$(cat catbox_url.txt)
+          FILE_SIZE=${{ env.FILE_SIZE }}
 
-    # Step 7: Commit and Push JSON to the correct path
-    - name: Commit and Push JSON to GitHub
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-        git add sidestore_source.json
-        git commit -m "Update SideStore source JSON"
-        git push
+          # Fetch existing JSON or create an empty structure
+          if [ -f sidestore_source.json ]; then
+            EXISTING_JSON=$(cat sidestore_source.json)
+          else
+            EXISTING_JSON="{
+              \"name\": \"SparseBox\",
+              \"identifier\": \"com.kdt.sparsebox\",
+              \"subtitle\": \"SparseBox official source\",
+              \"apps\": [
+                {
+                  \"name\": \"SparseBox\",
+                  \"bundleIdentifier\": \"com.kdt.sparsebox\",
+                  \"developerName\": \"khanhduytran0\",
+                  \"localizedDescription\": \"\",
+                  \"iconURL\": \"https://miro.medium.com/v2/resize:fit:1400/1*aYYTwvdn53eXqVWhuDVt2w.png\",
+                  \"downloadURL\": \"$DOWNLOAD_URL\",
+                  \"versions\": []
+                }
+              ]
+            }"
+          fi
+
+          # Extract the versions array from the existing JSON
+          VERSION_ARRAY=$(echo $EXISTING_JSON | jq '.apps[0].versions')
+
+          # Add the new version to the top of the array
+          NEW_VERSION_JSON=$(cat <<EOF
+{
+  "version": "$BUILD_NUMBER",
+  "date": "$VERSION_DATE",
+  "localizedDescription": "On-device backup restoration? rewrote SparseRestore to swift",
+  "downloadURL": "$DOWNLOAD_URL",
+  "size": "$FILE_SIZE"
+}
+EOF
+)
+
+          UPDATED_VERSION_ARRAY=$(echo $VERSION_ARRAY | jq ". |= [ $NEW_VERSION_JSON ] + .[:4]")
+
+          # Replace the versions array in the original JSON with the updated array
+          UPDATED_JSON=$(echo $EXISTING_JSON | jq --argjson updatedVersions "$UPDATED_VERSION_ARRAY" '.apps[0].versions = $updatedVersions')
+
+          # Write the updated JSON back to the file
+          echo $UPDATED_JSON > sidestore_source.json
+
+    # Step 8: Commit and Push JSON to GitHub
+      - name: Commit and Push JSON to GitHub
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add sidestore_source.json
+          git commit -m "Update SideStore source JSON with new version"
+          git push
