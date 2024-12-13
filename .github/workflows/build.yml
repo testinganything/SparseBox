@@ -23,31 +23,26 @@ jobs:
     - name: Download SparseBox .zip
       run: |
         curl -L -o artifact.zip https://nightly.link/khanhduytran0/SparseBox/workflows/build/main/artifact.zip
-
     # Step 3: Unzip the .zip file to extract the .ipa
     - name: Unzip SparseBox.zip
       run: |
         mkdir -p extracted_ipa
         unzip artifact.zip -d extracted_ipa
-
     # Step 4: Move the .ipa file from the extracted folder
     - name: Locate the .ipa file
       run: |
         mv extracted_ipa/com.kdt.sparsebox_0.0.1.ipa SparseBox.ipa
-
     # Step 5: Upload .ipa to Catbox.moe
     - name: Upload to Catbox.moe
       run: |
         curl -F "reqtype=fileupload" -F "fileToUpload=@SparseBox.ipa" https://catbox.moe/user/api.php > catbox_url.txt
-
-    # Step 6: Calculate file size and fetch necessary details
-    - name: Calculate file size and fetch details
+    # Step 6: Generate the SideStore Source JSON with the new version
+    - name: Generate SideStore Source JSON
       run: |
         VERSION_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
         BUILD_NUMBER=${{ github.run_number }}
         DOWNLOAD_URL=$(cat catbox_url.txt)
         FILE_SIZE=$(stat --format=%s SparseBox.ipa)
-
         # Fetch existing JSON or create an empty structure if it doesn't exist
         if [ -f sidestore_source.json ]; then
           EXISTING_JSON=$(cat sidestore_source.json)
@@ -69,7 +64,6 @@ jobs:
             ]
           }'
         fi
-
         # Create the new version data
         NEW_VERSION_JSON=$(echo '{
           "version": "'$BUILD_NUMBER'",
@@ -78,22 +72,14 @@ jobs:
           "downloadURL": "'$DOWNLOAD_URL'",
           "size": "'$FILE_SIZE'"
         }')
-
         # Extract the versions array from the existing JSON
         VERSION_ARRAY=$(echo "$EXISTING_JSON" | jq '.apps[0].versions')
-
         # Add the new version to the top of the array, keeping a max of 5 versions
         UPDATED_VERSION_ARRAY=$(echo "$VERSION_ARRAY" | jq ". |= [ $NEW_VERSION_JSON ] + .[:4]")
-
         # Replace the versions array in the original JSON with the updated array
         UPDATED_JSON=$(echo "$EXISTING_JSON" | jq --argjson updatedVersions "$UPDATED_VERSION_ARRAY" '.apps[0].versions = $updatedVersions')
-
-        # Update the top-level version and date to reflect the latest version
-        UPDATED_JSON=$(echo "$UPDATED_JSON" | jq --arg version "$BUILD_NUMBER" --arg date "$VERSION_DATE" '.version = $version | .versionDate = $date')
-
         # Write the updated JSON back to the file
         echo "$UPDATED_JSON" > sidestore_source.json
-
     # Step 7: Commit and Push JSON to GitHub
     - name: Commit and Push JSON to GitHub
       run: |
