@@ -62,4 +62,4 @@ jobs:
         git config user.email "github-actions[bot]@users.noreply.github.com"
         git add sidestore_source.json
         git commit -m "Update SideStore source JSON"
-        git push https://x-access-token:${{ secrets.GIHUB_TOKEN }}@github.com/testinganything/SparseBox.git HEAD:main
+        git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/testinganything/SparseBox.git HEAD:main
