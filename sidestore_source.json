@@ -1,1 +1,11 @@
-
+{
+  "name": "SparseBox",
+  "identifier": "com.kdt.sparsebox",
+  "bundleIdentifier": "com.kdt.sparsebox",
+  "developerName": "khanhduytran0",
+  "version": "17",
+  "versionDate": "2024-12-13T16:55:54Z",
+  "versionDescription": "On-device backup restoration? rewrote SparseRestore to swift",
+  "subtitle": "SparseBox App",
+  "downloadURL": "https://files.catbox.moe/0iquw0.ipa"
+}
