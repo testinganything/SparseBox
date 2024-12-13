@@ -88,6 +88,9 @@ jobs:
         # Replace the versions array in the original JSON with the updated array
         UPDATED_JSON=$(echo "$EXISTING_JSON" | jq --argjson updatedVersions "$UPDATED_VERSION_ARRAY" '.apps[0].versions = $updatedVersions')
 
+        # Update the top-level version and date to reflect the latest version
+        UPDATED_JSON=$(echo "$UPDATED_JSON" | jq --arg version "$BUILD_NUMBER" --arg date "$VERSION_DATE" '.version = $version | .versionDate = $date')
+
         # Write the updated JSON back to the file
         echo "$UPDATED_JSON" > sidestore_source.json
 
