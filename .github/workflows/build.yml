@@ -49,6 +49,7 @@ jobs:
 
         echo "{
           \"name\": \"SparseBox\",
+          \"identifier\": \"com.kdt.sparsebox\",
           \"bundleIdentifier\": \"com.kdt.sparsebox\",
           \"developerName\": \"khanhduytran0\",
           \"version\": \"$BUILD_NUMBER\",
