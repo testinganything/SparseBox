@@ -1,0 +1,69 @@
+name: Automate SideStore Source
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    name: Update SideStore Source
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Checkout the code
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    # Step 2: Download the pre-built .zip file
+    - name: Download SparseBox .zip
+      run: |
+        curl -L -o artifact.zip https://nightly.link/khanhduytran0/SparseBox/workflows/build/main/artifact.zip
+
+    # Step 3: Unzip the .zip file to extract the .ipa
+    - name: Unzip SparseBox.zip
+      run: |
+        mkdir -p extracted_ipa
+        unzip artifact.zip -d extracted_ipa
+
+    # Step 4: Move the .ipa file from the extracted folder
+    - name: Locate the .ipa file
+      run: |
+        mv extracted_ipa/com.kdt.sparsebox_0.0.1.ipa SparseBox.ipa
+
+    # Step 5: Upload .ipa to Catbox.moe
+    - name: Upload to Catbox.moe
+      run: |
+        curl -F "reqtype=fileupload" -F "fileToUpload=@SparseBox.ipa" https://catbox.moe/user/api.php > catbox_url.txt
+
+    # Step 6: Generate the SideStore Source JSON
+    - name: Generate SideStore Source JSON
+      run: |
+        VERSION_DATE=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+        BUILD_NUMBER=${{ github.run_number }}
+        DOWNLOAD_URL=$(cat catbox_url.txt)
+
+        echo "{
+          \"name\": \"SparseBox\",
+          \"identifier\": \"com.kdt.sparsebox\",
+          \"bundleIdentifier\": \"com.kdt.sparsebox\",
+          \"developerName\": \"khanhduytran0\",
+          \"version\": \"$BUILD_NUMBER\",
+          \"versionDate\": \"$VERSION_DATE\",
+          \"versionDescription\": \"On-device backup restoration? rewrote SparseRestore to swift\",
+          \"subtitle\": \"SparseBox App\",
+          \"downloadURL\": \"$DOWNLOAD_URL\"
+        }" > sidestore_source.json
+
+    # Step 7: Commit and Push JSON to the correct path
+    - name: Commit and Push JSON to GitHub
+      run: |
+        git config user.name "github-actions[bot]"
+        git config user.email "github-actions[bot]@users.noreply.github.com"
+        git add sidestore_source.json
+        git commit -m "Update SideStore source JSON"
+        git push
