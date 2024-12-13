@@ -78,7 +78,7 @@ jobs:
           fi
 
           # Extract the versions array from the existing JSON
-          VERSION_ARRAY=$(echo $EXISTING_JSON | jq '.apps[0].versions')
+          VERSION_ARRAY=$(echo "$EXISTING_JSON" | jq '.apps[0].versions')
 
           # Add the new version to the top of the array
           NEW_VERSION_JSON=$(cat <<EOF
@@ -92,13 +92,14 @@ jobs:
 EOF
 )
 
-          UPDATED_VERSION_ARRAY=$(echo $VERSION_ARRAY | jq ". |= [ $NEW_VERSION_JSON ] + .[:4]")
+          # Append the new version and ensure there are no more than 5 versions
+          UPDATED_VERSION_ARRAY=$(echo "$VERSION_ARRAY" | jq ". |= [ $NEW_VERSION_JSON ] + .[:4]")
 
           # Replace the versions array in the original JSON with the updated array
-          UPDATED_JSON=$(echo $EXISTING_JSON | jq --argjson updatedVersions "$UPDATED_VERSION_ARRAY" '.apps[0].versions = $updatedVersions')
+          UPDATED_JSON=$(echo "$EXISTING_JSON" | jq --argjson updatedVersions "$UPDATED_VERSION_ARRAY" '.apps[0].versions = $updatedVersions')
 
           # Write the updated JSON back to the file
-          echo $UPDATED_JSON > sidestore_source.json
+          echo "$UPDATED_JSON" > sidestore_source.json
 
     # Step 8: Commit and Push JSON to GitHub
       - name: Commit and Push JSON to GitHub
